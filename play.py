@@ -7,10 +7,10 @@ from pygame.rect import Rect
 from pygame.surface import Surface
 from pygame.time import Clock
 
-from io_utils import bytes_to_int, NothingToRead
 from format import DumInfo, parse_header
 
 DEBUG = False
+LOOP = True
 
 
 def debug(text: str):
@@ -56,6 +56,11 @@ def play_file(path: str):
         clock = Clock()
         frame = 0
         while True:
+
+            if LOOP and frame == info.num_frames:
+                file.seek(info.header_size)
+                frame = 0
+
             clock.tick(info.frame_rate)
             if running:
                 debug(f"Frame {frame}/{info.num_frames}")
@@ -78,15 +83,19 @@ def play_file(path: str):
 
 
 def draw_frame(file: BinaryIO, header: DumInfo, rect: Rect, screen: Surface) -> bool:
+    frame_size = header.height * header.width * 3
+    buf = file.read(frame_size)
+    if len(buf) < frame_size:
+        return False
     for y in range(header.height):
         for x in range(header.width):
-            try:
-                color = (bytes_to_int(file.read(1)), bytes_to_int(file.read(1)), bytes_to_int(file.read(1)))
-            except NothingToRead:
-                return False
+            offset = 3 * (x + y * header.width)
+            r = buf[offset]
+            g = buf[offset + 1]
+            b = buf[offset + 2]
             rect.x = x * header.hor_scaling
             rect.y = y * header.ver_scaling
-            pygame.draw.rect(screen, color, rect)
+            pygame.draw.rect(screen, (r, g, b), rect)
     return True
 
 

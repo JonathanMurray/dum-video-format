@@ -6,31 +6,41 @@ from format import write_header, write_pixel
 
 content = [
     "",
-    " X   X   XXXXX   X       X       XXXXX      W           W   XXXXX   XXXX    X       XXXX   ",
-    " X   X   X       X       X       X   X       W         W    X   X   X   X   X       X   X  ",
-    " XXXXX   XXXXX   X       X       X   X        W   W   W     X   X   XXXX    X       X   X  ",
-    " X   X   X       X       X       X   X         W W W W      X   X   X  X    X       X   X  ",
-    " X   X   XXXXX   XXXXX   XXXXX   XXXXX          W   W       XXXXX   X   X   XXXXX   XXXX   ",
+    " X   X   XXXXX   X       X       XXXXX      W           W   XXXXX   XXXX    X       XXXX            ",
+    " X   X   X       X       X       X   X       W         W    X   X   X   X   X       X   X           ",
+    " XXXXX   XXXXX   X       X       X   X        W   W   W     X   X   XXXX    X       X   X           ",
+    " X   X   X       X       X       X   X         W W W W      X   X   X  X    X       X   X           ",
+    " X   X   XXXXX   XXXXX   XXXXX   XXXXX          W   W       XXXXX   X   X   XXXXX   XXXX            ",
     "",
 ]
 
-WIDTH = max([len(line) for line in content])
+CONTENT_WIDTH = max([len(line) for line in content])
+WIDTH = 50
 HEIGHT = len(content)
 
 
 def create_file(path: str):
     with open(path, "wb") as file:
 
-        write_header(file, frame_rate=10, resolution=(WIDTH, HEIGHT), scaling=(8, 10))
+        write_header(file, frame_rate=30, resolution=(WIDTH, HEIGHT), scaling=(16, 20))
 
-        num_frames = 50
-        for _ in range(num_frames):
-            for line in content:
+        num_frames = 100
+        for frame in range(num_frames):
+            for y, line in enumerate(content):
                 for x in range(WIDTH):
-                    if x < len(line) and line[x] != ' ':
-                        write_pixel(file, randint(100, 255), randint(50, 200), randint(0, 150))
+                    xx = (x + frame) % CONTENT_WIDTH
+                    if xx < len(line) and line[xx] != ' ':
+                        if xx < 40:
+                            # Color for HELLO
+                            write_pixel(file, randint(150, 255), randint(100, 150), randint(0, 150))
+                        else:
+                            # Color for WORLD
+                            write_pixel(file, randint(0, 150), randint(100, 150), randint(150, 255))
                     else:
-                        file.write(b'\x00\x00\x00')
+                        if xx % 2 == 0 and y % 2 == 0:
+                            write_pixel(file, 25, 25, 25)
+                        else:
+                            write_pixel(file, 50, 50, 50)
 
 
 def main():
