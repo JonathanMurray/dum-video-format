@@ -8,7 +8,7 @@ from pygame.surface import Surface
 from pygame.time import Clock
 
 from io_utils import bytes_to_int, NothingToRead
-from parse import parse_header, DumInfo
+from format import DumInfo, parse_header
 
 DEBUG = False
 

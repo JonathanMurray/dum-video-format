@@ -2,7 +2,7 @@
 import sys
 from random import randint
 
-from io_utils import int_to_bytes
+from format import write_header
 
 content = [
     "",
@@ -20,23 +20,8 @@ HEIGHT = len(content)
 
 def create_file(path: str):
     with open(path, "wb") as file:
-        # magic string
-        file.write(b'dum')
 
-        # frame rate
-        file.write(int_to_bytes(10))
-
-        # width
-        file.write(int_to_bytes(WIDTH))
-
-        # height
-        file.write(int_to_bytes(HEIGHT))
-
-        # horizontal scale
-        file.write(int_to_bytes(8))
-
-        # vertical scale
-        file.write(int_to_bytes(10))
+        write_header(file, frame_rate=10, resolution=(WIDTH, HEIGHT), scaling=(8, 10))
 
         num_frames = 50
         for _ in range(num_frames):
