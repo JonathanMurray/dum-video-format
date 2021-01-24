@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import BinaryIO, Tuple
+from typing import BinaryIO, Tuple, List
 
 from io_utils import bytes_to_int, int_to_bytes
 
@@ -63,3 +63,15 @@ def write_header(file: BinaryIO, frame_rate: int, resolution: Tuple[int, int], s
 
     # vertical scale
     file.write(int_to_bytes(scaling[1]))
+
+
+def write_frame(file: BinaryIO, rows: List[List[Tuple[int, int, int]]]):
+    for row in rows:
+        for (r, g, b) in row:
+            write_pixel(file, r, g, b)
+
+
+def write_pixel(file: BinaryIO, r: int, g: int, b: int):
+    file.write(r.to_bytes(1, byteorder="big"))
+    file.write(g.to_bytes(1, byteorder="big"))
+    file.write(b.to_bytes(1, byteorder="big"))

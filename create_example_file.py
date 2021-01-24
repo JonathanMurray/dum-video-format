@@ -2,7 +2,7 @@
 import sys
 from random import randint
 
-from format import write_header
+from format import write_header, write_pixel
 
 content = [
     "",
@@ -28,12 +28,7 @@ def create_file(path: str):
             for line in content:
                 for x in range(WIDTH):
                     if x < len(line) and line[x] != ' ':
-                        r = randint(100, 255)
-                        file.write(r.to_bytes(1, byteorder="big"))
-                        g = randint(50, 200)
-                        file.write(g.to_bytes(1, byteorder="big"))
-                        b = randint(0, 150)
-                        file.write(b.to_bytes(1, byteorder="big"))
+                        write_pixel(file, randint(100, 255), randint(50, 200), randint(0, 150))
                     else:
                         file.write(b'\x00\x00\x00')
 
