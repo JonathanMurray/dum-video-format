@@ -7,7 +7,7 @@ from pygame.rect import Rect
 from pygame.surface import Surface
 from pygame.time import Clock
 
-from format import DumInfo, parse_header, read_frame
+from format import DumInfo, Decoder
 
 DEBUG = True
 LOOP = True
@@ -38,7 +38,9 @@ class Seekbar:
 def play_file(path: str):
     with open(path, "rb") as file:
 
-        info = parse_header(file)
+        decoder = Decoder(file)
+        decoder.read_header()
+        info = decoder.info
 
         debug(f"Total {info.num_frames} frames")
         pygame.init()
@@ -52,19 +54,15 @@ def play_file(path: str):
         seekbar_pos = (margin, screen.get_height() - seekbar_height - margin)
         seekbar = Seekbar(Surface((screen.get_width() - margin * 2, seekbar_height)))
 
-        running = True
         clock = Clock()
         frame = 0
         while True:
 
             if LOOP and frame == info.num_frames:
-                file.seek(info.header_size)
+                decoder.seek_to_beginning()
                 frame = 0
 
             clock.tick(info.frame_rate)
-            if running:
-                debug(f"Frame {frame}/{info.num_frames}")
-                debug(f"{file.tell()}/{info.file_size} bytes")
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -74,8 +72,8 @@ def play_file(path: str):
 
             screen.fill((0, 0, 0))
 
-            pixels = read_frame(file, info)
-            running = draw_frame(info, pixel_rect, screen, pixels)
+            pixels = decoder.read_frame()
+            draw_frame(info, pixel_rect, screen, pixels)
             seekbar.set_progress(frame / info.num_frames)
             seekbar.redraw()
             screen.blit(seekbar.surface, seekbar_pos)
@@ -83,7 +81,7 @@ def play_file(path: str):
             frame += 1
 
 
-def draw_frame(info: DumInfo, rect: Rect, screen: Surface, pixels: List[int]) -> bool:
+def draw_frame(info: DumInfo, rect: Rect, screen: Surface, pixels: List[int]):
     for y in range(info.height):
         for x in range(info.width):
             offset = 3 * (x + y * info.width)
@@ -93,7 +91,6 @@ def draw_frame(info: DumInfo, rect: Rect, screen: Surface, pixels: List[int]) ->
             rect.x = x * info.hor_scaling
             rect.y = y * info.ver_scaling
             pygame.draw.rect(screen, (r, g, b), rect)
-    return True
 
 
 def exit_program():

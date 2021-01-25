@@ -24,7 +24,38 @@ class DumInfo:
     file_size: int
 
 
-def parse_header(file: BinaryIO) -> DumInfo:
+class Decoder:
+    def __init__(self, file: BinaryIO):
+        self._file = file
+        self._info = None
+        self._frame_index = 0
+
+    def read_header(self):
+        if self._info:
+            raise Exception("Header has already been parsed!")
+        self._info = _read_header(self._file)
+
+    def read_frame(self) -> List[int]:
+        if not self._info:
+            raise Exception("Must parse header before reading frames!")
+        frame = _read_frame(self._file, self._info)
+        self._frame_index += 1
+        debug(f"Frame {self._frame_index}/{self._info.num_frames}")
+        debug(f"{self._file.tell()}/{self._info.file_size} bytes")
+        return frame
+
+    def seek_to_beginning(self):
+        if not self._info:
+            raise Exception("Must parse header before seeking!")
+        self._file.seek(self._info.header_size)
+        self._frame_index = 0
+
+    @property
+    def info(self):
+        return self._info
+
+
+def _read_header(file: BinaryIO) -> DumInfo:
     file.seek(0, 2)
     file_size = file.tell()
     file.seek(0, 0)
@@ -53,7 +84,7 @@ def parse_header(file: BinaryIO) -> DumInfo:
     return DumInfo(frame_rate, width, height, hor_scaling, ver_scaling, header_size, num_frames, file_size)
 
 
-def read_frame(file: BinaryIO, info: DumInfo) -> List[int]:
+def _read_frame(file: BinaryIO, info: DumInfo) -> List[int]:
     frame_type = bytes_to_int(file.read(1))
     if frame_type == FrameType.RAW.value:
         debug("Reading raw frame...")
