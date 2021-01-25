@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import sys
 from random import randint
+from typing import List
 
-from format import write_header, write_pixel
+from format import write_header, write_frame
+from io_utils import RGB
 
 content = [
     "",
@@ -22,25 +24,27 @@ HEIGHT = len(content)
 def create_file(path: str):
     with open(path, "wb") as file:
 
-        write_header(file, frame_rate=30, resolution=(WIDTH, HEIGHT), scaling=(16, 20))
-
         num_frames = 100
+        write_header(file, frame_rate=30, resolution=(WIDTH, HEIGHT), scaling=(16, 20), num_frames=num_frames)
+
         for frame in range(num_frames):
+            frame_pixels: List[RGB] = []
             for y, line in enumerate(content):
                 for x in range(WIDTH):
                     xx = (x + frame) % CONTENT_WIDTH
                     if xx < len(line) and line[xx] != ' ':
                         if xx < 40:
                             # Color for HELLO
-                            write_pixel(file, randint(150, 255), randint(100, 150), randint(0, 150))
+                            frame_pixels.append((randint(150, 255), randint(100, 150), randint(0, 150)))
                         else:
                             # Color for WORLD
-                            write_pixel(file, randint(0, 150), randint(100, 150), randint(150, 255))
+                            frame_pixels.append((randint(0, 150), randint(100, 150), randint(150, 255)))
                     else:
                         if xx % 2 == 0 and y % 2 == 0:
-                            write_pixel(file, 25, 25, 25)
+                            frame_pixels.append((25, 25, 25))
                         else:
-                            write_pixel(file, 50, 50, 50)
+                            frame_pixels.append((50, 50, 50))
+            write_frame(file, frame_pixels)
 
 
 def main():

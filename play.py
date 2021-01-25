@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 import sys
-from typing import BinaryIO
+from typing import List
 
 import pygame
 from pygame.rect import Rect
 from pygame.surface import Surface
 from pygame.time import Clock
 
-from format import DumInfo, parse_header
+from format import DumInfo, parse_header, read_frame
 
-DEBUG = False
+DEBUG = True
 LOOP = True
 
 
@@ -74,7 +74,8 @@ def play_file(path: str):
 
             screen.fill((0, 0, 0))
 
-            running = draw_frame(file, info, pixel_rect, screen)
+            pixels = read_frame(file, info)
+            running = draw_frame(info, pixel_rect, screen, pixels)
             seekbar.set_progress(frame / info.num_frames)
             seekbar.redraw()
             screen.blit(seekbar.surface, seekbar_pos)
@@ -82,19 +83,15 @@ def play_file(path: str):
             frame += 1
 
 
-def draw_frame(file: BinaryIO, header: DumInfo, rect: Rect, screen: Surface) -> bool:
-    frame_size = header.height * header.width * 3
-    buf = file.read(frame_size)
-    if len(buf) < frame_size:
-        return False
-    for y in range(header.height):
-        for x in range(header.width):
-            offset = 3 * (x + y * header.width)
-            r = buf[offset]
-            g = buf[offset + 1]
-            b = buf[offset + 2]
-            rect.x = x * header.hor_scaling
-            rect.y = y * header.ver_scaling
+def draw_frame(info: DumInfo, rect: Rect, screen: Surface, pixels: List[int]) -> bool:
+    for y in range(info.height):
+        for x in range(info.width):
+            offset = 3 * (x + y * info.width)
+            r = pixels[offset]
+            g = pixels[offset + 1]
+            b = pixels[offset + 2]
+            rect.x = x * info.hor_scaling
+            rect.y = y * info.ver_scaling
             pygame.draw.rect(screen, (r, g, b), rect)
     return True
 

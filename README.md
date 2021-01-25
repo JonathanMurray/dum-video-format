@@ -12,22 +12,36 @@ A DUM video file is structured in the following way:
 ### Header
 The file must begin with a header that contains the values listed below.
 ```
-- magic_string (3 bytes) = 0x64756d ("dum")
-- frame_rate (4 bytes)
-- width (4 bytes)
-- height (4 bytes)
-- hor_scale (4 bytes)
-- ver_scale (4 bytes)
+- magic_string (4 bytes) = 0x64756d76 ("dumv")
+- frame_rate (1 byte)
+- width (1 byte)
+- height (1 byte)
+- hor_scale (1 byte)
+- ver_scale (1 byte)
+- num_frames (4 bytes)
 ```
 
 ### Frames
-After the header comes the frame data. Each frame is simply a sequence of rows, where each row is a
-sequence of pixels. Each pixel must contain RGB values as listed below
+After the header comes the frame data. 
+
+Frame header:
 ```
-- red (1 byte)
-- green (1 byte)
-- blue (1 byte) 
+- type (1 byte) = 1 (raw) or 2 (compressed)
 ```
+
+#### Raw frame
+A raw frame is simply a sequence of rows, where each row is a sequence of pixels. Each pixel is
+made up of 3 bytes (RGB).
+
+#### Compressed frame
+A compressed frame contains the following data:
+```
+- num_colors (1 byte)
+- colors (num_colors * 3 bytes)
+- pixels (num_rows * num_cols bytes)
+```
+
+A list of RGB values is defined that is then referenced with indices by the pixels.
 
 ## Try it out
 
