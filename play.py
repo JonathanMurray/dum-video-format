@@ -36,17 +36,20 @@ class Seekbar:
 
 
 def play_file(path: str):
+    debug(f"Opening file {path}...")
     with open(path, "rb") as file:
 
         decoder = Decoder(file)
         decoder.read_header()
         info = decoder.info
 
-        debug(f"Total {info.num_frames} frames")
+        debug(f"Parsed header. Video consists of {info.num_frames} frames")
         pygame.init()
         screen_size = (max(info.width * info.hor_scaling, 256), max(info.height * info.ver_scaling, 256))
         screen = pygame.display.set_mode(screen_size)
         pygame.display.set_caption(path)
+        screen.fill((0, 0, 0))
+        pygame.display.update()
 
         pixel_rect = Rect(0, 0, info.hor_scaling, info.ver_scaling)
         margin = 4
