@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import BinaryIO, Tuple, List
 
-from io_utils import uint8_to_bytes, RGB, uint32_to_bytes, bytes_to_int, write_rgb, read_rgb
+from color_quantization import color_to_uint16, uint16_to_color, uint8_to_color, color_to_uint8
+from io_utils import uint8_to_bytes, RGB, uint32_to_bytes, bytes_to_int, write_rgb, read_rgb, uint16_to_bytes
 
 DEBUG = True
 
@@ -19,8 +20,8 @@ class DumInfo:
     height: int
     hor_scaling: int
     ver_scaling: int
-    header_size: int
     num_frames: int
+    header_size: int
     file_size: int
 
 
@@ -74,14 +75,14 @@ def _read_header(file: BinaryIO) -> DumInfo:
         return n
 
     frame_rate = read(1)
-    width = read(1)
-    height = read(1)
+    width = read(2)
+    height = read(2)
     hor_scaling = read(1)
     ver_scaling = read(1)
 
     num_frames = read(4)
 
-    return DumInfo(frame_rate, width, height, hor_scaling, ver_scaling, header_size, num_frames, file_size)
+    return DumInfo(frame_rate, width, height, hor_scaling, ver_scaling, num_frames, header_size, file_size)
 
 
 def _read_frame(file: BinaryIO, info: DumInfo) -> List[int]:
@@ -92,14 +93,28 @@ def _read_frame(file: BinaryIO, info: DumInfo) -> List[int]:
         buf = file.read(frame_size)
         if len(buf) < frame_size:
             print(f"WARN: Read {len(buf)} bytes - not enough for a full frame!")
-    elif frame_type == FrameType.COMPRESSED.value:
-        debug("Reading compressed frame...")
+    elif frame_type == FrameType.COLOR_MAPPED.value:
+        debug("Reading color-mapped frame...")
         num_colors = bytes_to_int(file.read(1))
-        colors = [read_rgb(file) for _ in range(num_colors)]
+        color_map = [read_rgb(file) for _ in range(num_colors)]
         buf = []
         for i in range(info.width * info.height):
             color_index = bytes_to_int(file.read(1))
-            color = colors[color_index]
+            color = color_map[color_index]
+            buf.append(color[0])
+            buf.append(color[1])
+            buf.append(color[2])
+    elif frame_type == FrameType.QUANTIZED_TO_16_BIT.value:
+        buf = []
+        for i in range(info.width * info.height):
+            color = uint16_to_color(bytes_to_int(file.read(2)))
+            buf.append(color[0])
+            buf.append(color[1])
+            buf.append(color[2])
+    elif frame_type == FrameType.QUANTIZED_TO_8_BIT.value:
+        buf = []
+        for i in range(info.width * info.height):
+            color = uint8_to_color(bytes_to_int(file.read(1)))
             buf.append(color[0])
             buf.append(color[1])
             buf.append(color[2])
@@ -109,8 +124,16 @@ def _read_frame(file: BinaryIO, info: DumInfo) -> List[int]:
 
 
 class FrameType(Enum):
-    RAW = 0
-    COMPRESSED = 1
+    RAW = 1
+    COLOR_MAPPED = 2
+    QUANTIZED_TO_16_BIT = 3
+    QUANTIZED_TO_8_BIT = 4
+
+
+class Quality(Enum):
+    LOW = 0
+    MEDIUM = 1
+    LOSSLESS = 2
 
 
 def write_header(file: BinaryIO, frame_rate: int, resolution: Tuple[int, int], scaling: Tuple[int, int],
@@ -120,10 +143,10 @@ def write_header(file: BinaryIO, frame_rate: int, resolution: Tuple[int, int], s
     file.write(uint8_to_bytes(frame_rate))
 
     # width
-    file.write(uint8_to_bytes(resolution[0]))
+    file.write(uint16_to_bytes(resolution[0]))
 
     # height
-    file.write(uint8_to_bytes(resolution[1]))
+    file.write(uint16_to_bytes(resolution[1]))
 
     # horizontal scale
     file.write(uint8_to_bytes(scaling[0]))
@@ -134,19 +157,28 @@ def write_header(file: BinaryIO, frame_rate: int, resolution: Tuple[int, int], s
     file.write(uint32_to_bytes(num_frames))
 
 
-def write_frame(file: BinaryIO, pixels: List[RGB]):
+def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LOSSLESS):
     colors = list(set(pixels))
-    if len(colors) <= 256:
-        debug(f"Frame only contains {len(colors)} colors. Will compress.")
-        file.write(uint8_to_bytes(FrameType.COMPRESSED.value))
+
+    if len(colors) < 256:
+        file.write(uint8_to_bytes(FrameType.COLOR_MAPPED.value))
         file.write(uint8_to_bytes(len(colors)))
-        for color in colors:
-            write_rgb(file, color)
-        for pixel in pixels:
-            color_index = colors.index(pixel)
-            file.write(uint8_to_bytes(color_index))
+        for key_color in colors:
+            write_rgb(file, key_color)
+        for i, pixel in enumerate(pixels):
+            file.write(uint8_to_bytes(colors.index(pixel)))
     else:
-        debug(f"Frame contains {len(colors)} colors. Will write raw frame.")
-        file.write(uint8_to_bytes(FrameType.RAW.value))
-        for pixel in pixels:
-            write_rgb(file, pixel)
+        if quality == Quality.LOW:
+            file.write(uint8_to_bytes(FrameType.QUANTIZED_TO_8_BIT.value))
+            for i, pixel in enumerate(pixels):
+                file.write(uint8_to_bytes(color_to_uint8(pixel)))
+        elif quality == Quality.MEDIUM:
+            file.write(uint8_to_bytes(FrameType.QUANTIZED_TO_16_BIT.value))
+            for i, pixel in enumerate(pixels):
+                file.write(uint16_to_bytes(color_to_uint16(pixel)))
+        elif quality == Quality.LOSSLESS:
+            file.write(uint8_to_bytes(FrameType.RAW.value))
+            for pixel in pixels:
+                write_rgb(file, pixel)
+        else:
+            raise ValueError(f"Unhandled quality: {quality}")

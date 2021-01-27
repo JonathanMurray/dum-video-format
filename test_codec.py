@@ -14,7 +14,7 @@ def test_write_and_read_header():
     decoder = Decoder(io)
     decoder.read_header()
     assert decoder.info == DumInfo(frame_rate=10, width=20, height=30, hor_scaling=40, ver_scaling=50,
-                                   num_frames=60, header_size=13, file_size=13)
+                                   num_frames=60, header_size=15, file_size=15)
 
 
 def test_write_full_file():
@@ -33,6 +33,6 @@ def test_write_and_read_full_file():
 
     decoder.read_header()
     assert decoder.info == DumInfo(frame_rate=1, width=2, height=1, hor_scaling=4, ver_scaling=5,
-                                   num_frames=2, header_size=13, file_size=33)
+                                   num_frames=2, header_size=15, file_size=35)
     assert decoder.read_frame() == [0, 0, 0, 100, 100, 100]
     assert decoder.read_frame() == [150, 150, 150, 250, 250, 250]
