@@ -35,10 +35,11 @@ class Decoder:
         self._info = None
         self._frame_index = 0
 
-    def read_header(self):
+    def read_header(self) -> DumInfo:
         if self._info:
             raise Exception("Header has already been parsed!")
         self._info = _read_header(self._file)
+        return self._info
 
     def read_frame(self) -> List[int]:
         info = self.info
@@ -48,18 +49,22 @@ class Decoder:
         debug(f"{self._file.tell()}/{info.file_size} bytes")
         return frame
 
+    def skip_frame(self):
+        _skip_frame(self._file)
+        self._frame_index += 1
+
     def seek(self, progress: float) -> int:
         target_frame = int(self.info.num_frames * progress)
         if target_frame < self._frame_index:
             log(f"Seeking {target_frame} frames from beginning. ({self._frame_index} --> {target_frame})")
             self.seek_to_beginning()
             for _ in range(target_frame):
-                self.read_frame()
+                self.skip_frame()
         else:
             diff = target_frame - self._frame_index
             log(f"Seeking forward {diff} frames. ({self._frame_index} --> {target_frame})")
             for _ in range(diff):
-                self.read_frame()
+                self.skip_frame()
         return target_frame
 
     def seek_to_beginning(self):
@@ -102,8 +107,17 @@ def _read_header(file: BinaryIO) -> DumInfo:
     return DumInfo(frame_rate, width, height, hor_scaling, ver_scaling, num_frames, header_size, file_size)
 
 
+def _skip_frame(file: BinaryIO):
+    frame_type = bytes_to_int(file.read(1))
+    if frame_type not in (t.value for t in FrameType):
+        raise ValueError(f"Unexpected frame_type at offset {file.tell() - 1}: {frame_type}")
+    frame_size = bytes_to_int(file.read(4))
+    file.seek(frame_size, 1)
+
+
 def _read_frame(file: BinaryIO, info: DumInfo) -> List[int]:
     frame_type = bytes_to_int(file.read(1))
+    file.read(4)  # frame size
     if frame_type == FrameType.RAW.value:
         debug("Reading raw frame...")
         frame_size = info.height * info.width * 3
@@ -178,7 +192,10 @@ def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LO
     colors = list(set(pixels))
 
     if len(colors) < 256:
+        # Frame type
         file.write(uint8_to_bytes(FrameType.COLOR_MAPPED.value))
+        # Frame size
+        file.write(uint32_to_bytes(1 + len(colors) * 3 + len(pixels)))
         file.write(uint8_to_bytes(len(colors)))
         for key_color in colors:
             write_rgb(file, key_color)
@@ -186,15 +203,24 @@ def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LO
             file.write(uint8_to_bytes(colors.index(pixel)))
     else:
         if quality == Quality.LOW:
+            # Frame type
             file.write(uint8_to_bytes(FrameType.QUANTIZED_TO_8_BIT.value))
-            for i, pixel in enumerate(pixels):
+            # Frame size
+            file.write(uint32_to_bytes(len(pixels)))
+            for pixel in pixels:
                 file.write(uint8_to_bytes(color_to_uint8(pixel)))
         elif quality == Quality.MEDIUM:
+            # Frame type
             file.write(uint8_to_bytes(FrameType.QUANTIZED_TO_16_BIT.value))
-            for i, pixel in enumerate(pixels):
+            # Frame size
+            file.write(uint32_to_bytes(len(pixels) * 2))
+            for pixel in pixels:
                 file.write(uint16_to_bytes(color_to_uint16(pixel)))
         elif quality == Quality.LOSSLESS:
+            # Frame type
             file.write(uint8_to_bytes(FrameType.RAW.value))
+            # Frame size
+            file.write(uint32_to_bytes(len(pixels) * 3))
             for pixel in pixels:
                 write_rgb(file, pixel)
         else:

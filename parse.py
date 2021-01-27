@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 import sys
 
-from format import _read_header
+from format import Decoder
 
 
 def parse_file(path: str):
     with open(path, "rb") as file:
-        header = _read_header(file)
-        print(f"{header}")
+        decoder = Decoder(file)
+        info = decoder.read_header()
+        print(f"{info}")
+        for _ in range(info.num_frames):
+            decoder.skip_frame()
+        print(f"Seeked through all {info.num_frames} frames.")
 
 
 def main():

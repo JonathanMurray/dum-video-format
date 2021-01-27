@@ -37,7 +37,8 @@ After the header comes the frame data.
 
 Frame header:
 ```
-- type (1) = 1 (raw), 2 (color-mapped), 3 (quantized 16bit), or 4 (quantized 8bit)
+- frame_type (1) = 1 (raw), 2 (color-mapped), 3 (quantized 16bit), or 4 (quantized 8bit)
+- frame_size (4)
 ```
 
 #### Raw frame

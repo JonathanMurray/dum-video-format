@@ -10,15 +10,17 @@ from play import play_file
 from pygame_utils import get_surface_pixels
 
 file = BytesIO()
-num_frames = 100
-surface = Surface((150, 100))
+num_frames = 300
+surface = Surface((300, 100))
 
 write_header(file, frame_rate=30, resolution=surface.get_size(), scaling=(3, 3), num_frames=num_frames)
 rect = Rect(10, 30, 40, 40)
+print("Writing frames to IO buffer...")
 for _ in range(num_frames):
     surface.fill((100, 100, 100))
     pygame.draw.rect(surface, (250, 150, 250), rect, width=1)
     pixels = list(get_surface_pixels(surface))
     write_frame(file, pixels)
     rect.move_ip(1, 0)
+print("Done creating video.")
 play_file(file, "testing")
