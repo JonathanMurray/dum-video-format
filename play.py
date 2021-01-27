@@ -70,6 +70,7 @@ def play_file(file: BinaryIO, caption: str):
             frame_i = 0
 
         clock.tick(info.frame_rate)
+        pygame.display.set_caption(f"{caption} ({(int(clock.get_fps()))})")
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -86,6 +87,9 @@ def play_file(file: BinaryIO, caption: str):
         screen.fill((0, 0, 0))
 
         frame = decoder.read_frame()
+
+        debug(f"Time: {round(frame_i / info.frame_rate, 2)}s")
+
         draw_frame(screen, pixel_rect, frame, (info.width, info.height))
         seekbar.set_progress(frame_i / info.num_frames)
         seekbar.redraw()
