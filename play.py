@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import sys
-from typing import List
+from typing import List, Tuple
 
 import pygame
 from pygame.rect import Rect
 from pygame.surface import Surface
 from pygame.time import Clock
 
-from format import DumInfo, Decoder
+from format import Decoder
 
 DEBUG = True
 LOOP = True
@@ -58,12 +58,12 @@ def play_file(path: str):
         seekbar = Seekbar(Surface((screen.get_width() - margin * 2, seekbar_height)))
 
         clock = Clock()
-        frame = 0
+        frame_i = 0
         while True:
 
-            if LOOP and frame == info.num_frames:
+            if LOOP and frame_i == info.num_frames:
                 decoder.seek_to_beginning()
-                frame = 0
+                frame_i = 0
 
             clock.tick(info.frame_rate)
 
@@ -75,24 +75,24 @@ def play_file(path: str):
 
             screen.fill((0, 0, 0))
 
-            pixels = decoder.read_frame()
-            draw_frame(info, pixel_rect, screen, pixels)
-            seekbar.set_progress(frame / info.num_frames)
+            frame = decoder.read_frame()
+            draw_frame(screen, pixel_rect, frame, (info.width, info.height))
+            seekbar.set_progress(frame_i / info.num_frames)
             seekbar.redraw()
             screen.blit(seekbar.surface, seekbar_pos)
             pygame.display.update()
-            frame += 1
+            frame_i += 1
 
 
-def draw_frame(info: DumInfo, rect: Rect, screen: Surface, pixels: List[int]):
-    for y in range(info.height):
-        for x in range(info.width):
-            offset = 3 * (x + y * info.width)
-            r = pixels[offset]
-            g = pixels[offset + 1]
-            b = pixels[offset + 2]
-            rect.x = x * info.hor_scaling
-            rect.y = y * info.ver_scaling
+def draw_frame(screen: Surface, rect: Rect, frame: List[int], frame_resolution: Tuple[int, int]):
+    for y in range(frame_resolution[1]):
+        for x in range(frame_resolution[0]):
+            offset = 3 * (x + y * frame_resolution[0])
+            r = frame[offset]
+            g = frame[offset + 1]
+            b = frame[offset + 2]
+            rect.x = x * rect.w
+            rect.y = y * rect.h
             pygame.draw.rect(screen, (r, g, b), rect)
 
 
