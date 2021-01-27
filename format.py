@@ -5,12 +5,16 @@ from typing import BinaryIO, Tuple, List
 from color_quantization import color_to_uint16, uint16_to_color, uint8_to_color, color_to_uint8
 from io_utils import uint8_to_bytes, RGB, uint32_to_bytes, bytes_to_int, write_rgb, read_rgb, uint16_to_bytes
 
-DEBUG = True
+DEBUG = False
 
 
 def debug(text: str):
     if DEBUG:
         print(text)
+
+
+def log(text: str):
+    print(text)
 
 
 @dataclass
@@ -37,22 +41,35 @@ class Decoder:
         self._info = _read_header(self._file)
 
     def read_frame(self) -> List[int]:
-        if not self._info:
-            raise Exception("Must parse header before reading frames!")
-        frame = _read_frame(self._file, self._info)
+        info = self.info
+        frame = _read_frame(self._file, info)
         self._frame_index += 1
-        debug(f"Frame {self._frame_index}/{self._info.num_frames}")
-        debug(f"{self._file.tell()}/{self._info.file_size} bytes")
+        debug(f"Frame {self._frame_index}/{info.num_frames}")
+        debug(f"{self._file.tell()}/{info.file_size} bytes")
         return frame
 
+    def seek(self, progress: float) -> int:
+        target_frame = int(self.info.num_frames * progress)
+        if target_frame < self._frame_index:
+            log(f"Seeking {target_frame} frames from beginning. ({self._frame_index} --> {target_frame})")
+            self.seek_to_beginning()
+            for _ in range(target_frame):
+                self.read_frame()
+        else:
+            diff = target_frame - self._frame_index
+            log(f"Seeking forward {diff} frames. ({self._frame_index} --> {target_frame})")
+            for _ in range(diff):
+                self.read_frame()
+        return target_frame
+
     def seek_to_beginning(self):
-        if not self._info:
-            raise Exception("Must parse header before seeking!")
-        self._file.seek(self._info.header_size)
+        self._file.seek(self.info.header_size)
         self._frame_index = 0
 
     @property
-    def info(self):
+    def info(self) -> DumInfo:
+        if not self._info:
+            raise Exception("Must parse header before getting info!")
         return self._info
 
 

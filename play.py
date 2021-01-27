@@ -9,7 +9,7 @@ from pygame.time import Clock
 
 from format import Decoder
 
-DEBUG = True
+DEBUG = False
 LOOP = True
 
 
@@ -56,9 +56,10 @@ def play_file(file: BinaryIO, caption: str):
 
     pixel_rect = Rect(0, 0, info.hor_scaling, info.ver_scaling)
     margin = 4
-    seekbar_height = 20
-    seekbar_pos = (margin, screen.get_height() - seekbar_height - margin)
-    seekbar = Seekbar(Surface((screen.get_width() - margin * 2, seekbar_height)))
+    seekbar_size = (screen.get_width() - margin * 2, 20)
+    seekbar_pos = (margin, screen.get_height() - seekbar_size[1] - margin)
+    seekbar_rect = Rect(seekbar_pos, seekbar_size)
+    seekbar = Seekbar(Surface(seekbar_size))
 
     clock = Clock()
     frame_i = 0
@@ -75,6 +76,12 @@ def play_file(file: BinaryIO, caption: str):
                 exit_program()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 exit_program()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if seekbar_rect.collidepoint(event.pos):
+                    mouse_x = event.pos[0]
+                    progress = (mouse_x - seekbar_rect.x) / seekbar_rect.w
+                    debug(f"Seeking to progress: {progress}")
+                    frame_i = decoder.seek(progress)
 
         screen.fill((0, 0, 0))
 
