@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 
-from format import Decoder
+from format import Decoder, FrameType
 
 
 def parse_file(path: str):
@@ -10,7 +10,8 @@ def parse_file(path: str):
         info = decoder.read_header()
         print(f"{info}")
         for _ in range(info.num_frames):
-            decoder.skip_frame()
+            frame_type, frame_size = decoder.skip_frame()
+            print(f"{FrameType(frame_type)} ({frame_size}B)")
         print(f"Seeked through all {info.num_frames} frames.")
 
 

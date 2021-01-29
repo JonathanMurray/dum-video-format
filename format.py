@@ -43,15 +43,19 @@ class Decoder:
 
     def read_frame(self) -> List[int]:
         info = self.info
-        frame = _read_frame(self._file, (info.width, info.height))
+        try:
+            frame = _read_frame(self._file, (info.width, info.height))
+        except Exception as e:
+            raise Exception(f"Failed to read frame {self._frame_index}") from e
         self._frame_index += 1
         debug(f"Frame {self._frame_index}/{info.num_frames}")
         debug(f"{self._file.tell()}/{info.file_size} bytes")
         return frame
 
-    def skip_frame(self):
-        _skip_frame(self._file)
+    def skip_frame(self) -> Tuple[int, int]:
+        frame_type, frame_size = _skip_frame(self._file)
         self._frame_index += 1
+        return frame_type, frame_size
 
     def seek(self, progress: float) -> int:
         target_frame = int(self.info.num_frames * progress)
@@ -107,12 +111,13 @@ def _read_header(file: BinaryIO) -> DumInfo:
     return DumInfo(frame_rate, width, height, hor_scaling, ver_scaling, num_frames, header_size, file_size)
 
 
-def _skip_frame(file: BinaryIO):
+def _skip_frame(file: BinaryIO) -> Tuple[int, int]:
     frame_type = bytes_to_int(file.read(1))
     if frame_type not in (t.value for t in FrameType):
         raise ValueError(f"Unexpected frame_type at offset {file.tell() - 1}: {frame_type}")
     frame_size = bytes_to_int(file.read(4))
     file.seek(frame_size, 1)
+    return frame_type, frame_size
 
 
 def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
@@ -136,6 +141,7 @@ def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
             buf.append(color[1])
             buf.append(color[2])
     elif frame_type == FrameType.QUANTIZED_TO_16_BIT.value:
+        debug("Reading 16-bit quantized frame...")
         buf = []
         for i in range(resolution[0] * resolution[1]):
             color = uint16_to_color(bytes_to_int(file.read(2)))
@@ -143,6 +149,7 @@ def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
             buf.append(color[1])
             buf.append(color[2])
     elif frame_type == FrameType.QUANTIZED_TO_8_BIT.value:
+        debug("Reading 8-bit quantized frame...")
         buf = []
         run_length_color = None
         while len(buf) < resolution[0] * resolution[1] * 3:
