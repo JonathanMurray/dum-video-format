@@ -125,21 +125,10 @@ def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
     file.read(4)  # frame size
     if frame_type == FrameType.RAW.value:
         debug("Reading raw frame...")
-        frame_size = resolution[0] * resolution[1] * 3
-        buf = file.read(frame_size)
-        if len(buf) < frame_size:
-            print(f"WARN: Read {len(buf)} bytes - not enough for a full frame!")
+        buf = _read_raw_frame(file, resolution)
     elif frame_type == FrameType.COLOR_MAPPED.value:
         debug("Reading color-mapped frame...")
-        num_colors = bytes_to_int(file.read(1))
-        color_map = [read_rgb(file) for _ in range(num_colors)]
-        buf = []
-        for i in range(resolution[0] * resolution[1]):
-            color_index = bytes_to_int(file.read(1))
-            color = color_map[color_index]
-            buf.append(color[0])
-            buf.append(color[1])
-            buf.append(color[2])
+        buf = _read_color_mapped_frame(file, resolution)
     elif frame_type == FrameType.QUANTIZED_TO_16_BIT.value:
         debug("Reading 16-bit quantized frame...")
         buf = _read_quantized_frame(resolution, read_quantized_pixel=lambda: bytes_to_int(file.read(2)),
@@ -151,6 +140,27 @@ def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
                                     decode_pixel=uint7_to_color, flag_bitmask=0b10000000, run_length_bitmask=0b01111111)
     else:
         raise ValueError(f"Read unexpected frame type: {frame_type}, offset={file.tell() - 1}")
+    return buf
+
+
+def _read_color_mapped_frame(file: BinaryIO, resolution: Tuple[int, int]):
+    num_colors = bytes_to_int(file.read(1))
+    color_map = [read_rgb(file) for _ in range(num_colors)]
+    buf = []
+    for i in range(resolution[0] * resolution[1]):
+        color_index = bytes_to_int(file.read(1))
+        color = color_map[color_index]
+        buf.append(color[0])
+        buf.append(color[1])
+        buf.append(color[2])
+    return buf
+
+
+def _read_raw_frame(file: BinaryIO, resolution: Tuple[int, int]):
+    frame_size = resolution[0] * resolution[1] * 3
+    buf = file.read(frame_size)
+    if len(buf) < frame_size:
+        print(f"WARN: Read {len(buf)} bytes - not enough for a full frame!")
     return buf
 
 
@@ -213,31 +223,39 @@ def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LO
     colors = list(set(pixels))
 
     if len(colors) < 256:
-        debug("Writing color-mapped frame")
-        # Frame type
-        file.write(uint8_to_bytes(FrameType.COLOR_MAPPED.value))
-        # Frame size
-        file.write(uint32_to_bytes(1 + len(colors) * 3 + len(pixels)))
-        file.write(uint8_to_bytes(len(colors)))
-        for key_color in colors:
-            write_rgb(file, key_color)
-        for i, pixel in enumerate(pixels):
-            file.write(uint8_to_bytes(colors.index(pixel)))
+        write_color_mapped_frame(colors, file, pixels)
     else:
         if quality == Quality.LOW:
             write_8bit_quantized_frame(file, pixels)
         elif quality == Quality.MEDIUM:
             write_16bit_quantized_frame(file, pixels)
         elif quality == Quality.LOSSLESS:
-            debug("Writing raw frame")
-            # Frame type
-            file.write(uint8_to_bytes(FrameType.RAW.value))
-            # Frame size
-            file.write(uint32_to_bytes(len(pixels) * 3))
-            for pixel in pixels:
-                write_rgb(file, pixel)
+            write_raw_frame(file, pixels)
         else:
             raise ValueError(f"Unhandled quality: {quality}")
+
+
+def write_color_mapped_frame(color_map: List[RGB], file: BinaryIO, pixels: List[RGB]):
+    debug("Writing color-mapped frame")
+    # Frame type
+    file.write(uint8_to_bytes(FrameType.COLOR_MAPPED.value))
+    # Frame size
+    file.write(uint32_to_bytes(1 + len(color_map) * 3 + len(pixels)))
+    file.write(uint8_to_bytes(len(color_map)))
+    for key_color in color_map:
+        write_rgb(file, key_color)
+    for i, pixel in enumerate(pixels):
+        file.write(uint8_to_bytes(color_map.index(pixel)))
+
+
+def write_raw_frame(file: BinaryIO, pixels: List[RGB]):
+    debug("Writing raw frame")
+    # Frame type
+    file.write(uint8_to_bytes(FrameType.RAW.value))
+    # Frame size
+    file.write(uint32_to_bytes(len(pixels) * 3))
+    for pixel in pixels:
+        write_rgb(file, pixel)
 
 
 def write_8bit_quantized_frame(file: BinaryIO, pixels: List[RGB]):
