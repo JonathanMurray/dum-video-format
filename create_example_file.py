@@ -3,7 +3,7 @@ import sys
 from random import randint
 from typing import List
 
-from format import write_header, write_frame
+from format import write_header, write_frame, Quality
 from io_utils import RGB
 
 content = [
@@ -41,10 +41,10 @@ def create_file(path: str):
                             frame_pixels.append((randint(0, 150), randint(100, 150), randint(150, 255)))
                     else:
                         if xx % 2 == 0 and y % 2 == 0:
-                            frame_pixels.append((25, 25, 25))
+                            frame_pixels.append((randint(25, 50), randint(25, 50), randint(25, 50)))
                         else:
-                            frame_pixels.append((50, 50, 50))
-            write_frame(file, frame_pixels)
+                            frame_pixels.append((randint(40, 60), randint(40, 60), randint(40, 60)))
+            write_frame(file, frame_pixels, Quality.LOW)
 
 
 def main():

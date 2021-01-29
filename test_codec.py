@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from format import write_header, Decoder, DumInfo, write_frame
+from format import write_header, Decoder, DumInfo, write_frame, _read_frame, write_8bit_quantized_frame
 
 
 def test_write_header():
@@ -36,3 +36,22 @@ def test_write_and_read_full_file():
                                    num_frames=2, header_size=15, file_size=43)
     assert decoder.read_frame() == [0, 0, 0, 100, 100, 100]
     assert decoder.read_frame() == [150, 150, 150, 250, 250, 250]
+
+
+def test_write_and_read_run_length_frame():
+    io = BytesIO()
+    w = 100
+    h = 100
+    pixels = []
+    for i in range(100):
+        pixels.append((0, 80, 130))
+    for i in range(9900):
+        pixels.append((150, 200, 255))
+    write_8bit_quantized_frame(io, pixels)
+
+    io.seek(0)
+
+    decoded_pixels = _read_frame(io, (w, h))
+
+    assert decoded_pixels[:300] == [0, 64, 128] * 100
+    assert decoded_pixels[300:] == [128, 192, 192] * 9900

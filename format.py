@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import BinaryIO, Tuple, List
 
-from color_quantization import color_to_uint16, uint16_to_color, uint8_to_color, color_to_uint8
+from color_quantization import color_to_uint16, uint16_to_color, color_to_uint7, uint7_to_color
 from io_utils import uint8_to_bytes, RGB, uint32_to_bytes, bytes_to_int, write_rgb, read_rgb, uint16_to_bytes
 
 DEBUG = False
@@ -144,11 +144,21 @@ def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
             buf.append(color[2])
     elif frame_type == FrameType.QUANTIZED_TO_8_BIT.value:
         buf = []
-        for i in range(resolution[0] * resolution[1]):
-            color = uint8_to_color(bytes_to_int(file.read(1)))
-            buf.append(color[0])
-            buf.append(color[1])
-            buf.append(color[2])
+        run_length_color = None
+        while len(buf) < resolution[0] * resolution[1] * 3:
+            n = bytes_to_int(file.read(1))
+            if not n & 0b10000000:
+                color = uint7_to_color(n)
+                buf.append(color[0])
+                buf.append(color[1])
+                buf.append(color[2])
+                run_length_color = color
+            else:
+                run_length = n & 0b01111111
+                for j in range(run_length):
+                    buf.append(run_length_color[0])
+                    buf.append(run_length_color[1])
+                    buf.append(run_length_color[2])
     else:
         raise ValueError(f"Read unexpected frame type: {frame_type}, offset={file.tell() - 1}")
     return buf
@@ -204,13 +214,8 @@ def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LO
             file.write(uint8_to_bytes(colors.index(pixel)))
     else:
         if quality == Quality.LOW:
-            debug("Writing 8-bit quantized frame")
-            # Frame type
-            file.write(uint8_to_bytes(FrameType.QUANTIZED_TO_8_BIT.value))
-            # Frame size
-            file.write(uint32_to_bytes(len(pixels)))
-            for pixel in pixels:
-                file.write(uint8_to_bytes(color_to_uint8(pixel)))
+            write_8bit_quantized_frame(file, pixels)
+
         elif quality == Quality.MEDIUM:
             debug("Writing 16-bit quantized frame")
             # Frame type
@@ -229,3 +234,34 @@ def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LO
                 write_rgb(file, pixel)
         else:
             raise ValueError(f"Unhandled quality: {quality}")
+
+
+def write_8bit_quantized_frame(file: BinaryIO, pixels: List[RGB]):
+    debug("Writing 8-bit quantized frame")
+    # Frame type
+    file.write(uint8_to_bytes(FrameType.QUANTIZED_TO_8_BIT.value))
+    # Frame size is written at the end
+    frame_size_offset = file.tell()
+    file.write(uint32_to_bytes(0))
+    frame_content_offset = file.tell()
+    quantized_pixels = [color_to_uint7(p) for p in pixels]
+    run_length_pixel = None
+    accumulated_run_length = 0
+    for p in quantized_pixels:
+        if p != run_length_pixel or accumulated_run_length == 127:
+            if accumulated_run_length:
+                debug(f"Writing accumulated run-length: {accumulated_run_length}, color {run_length_pixel}")
+                file.write(uint8_to_bytes((1 << 7) + accumulated_run_length))
+            file.write(uint8_to_bytes(p))
+            run_length_pixel = p
+            accumulated_run_length = 0
+        else:
+            # Same pixel as last one => start counting
+            accumulated_run_length += 1
+    if accumulated_run_length:
+        debug(f"Writing last accumulated run-length: {accumulated_run_length}, color {run_length_pixel}")
+        file.write(uint8_to_bytes((1 << 7) + accumulated_run_length))
+    frame_size = file.tell() - frame_content_offset
+    file.seek(frame_size_offset)
+    file.write(uint32_to_bytes(frame_size))
+    file.seek(0, 2)
