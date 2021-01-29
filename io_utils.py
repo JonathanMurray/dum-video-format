@@ -27,9 +27,7 @@ class ReadError(Exception):
 
 
 def write_rgb(file: BinaryIO, rgb: RGB):
-    file.write(uint8_to_bytes(rgb[0]))
-    file.write(uint8_to_bytes(rgb[1]))
-    file.write(uint8_to_bytes(rgb[2]))
+    file.write(bytes(rgb))
 
 
 def read_rgb(file: BinaryIO) -> RGB:
