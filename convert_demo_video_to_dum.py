@@ -44,10 +44,19 @@ def convert(outfile: BinaryIO, resolution: Tuple[int, int], scaling: Tuple[int, 
                     frame_i += 1
 
 
-def main():
+def convert_to_file(filename: str):
+    with open(filename, "wb") as outfile:
+        convert(outfile, resolution=(160, 90), scaling=(4, 4), num_frames=50)
+
+
+def convert_and_play_in_memory():
     outfile = BytesIO()
     convert(outfile, resolution=(160, 90), scaling=(4, 4), num_frames=50)
     play_file(outfile, "Night sky")
+
+
+def main():
+    convert_and_play_in_memory()
 
 
 if __name__ == '__main__':

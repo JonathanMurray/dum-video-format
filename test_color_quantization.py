@@ -1,23 +1,23 @@
-from color_quantization import color_to_uint16, uint16_to_color, color_to_uint7, uint7_to_color
+from color_quantization import color_to_uint15, uint15_to_color, color_to_uint7, uint7_to_color
 
 
-def uint16_roundtrip(color):
-    return uint16_to_color(color_to_uint16(color))
+def uint15_roundtrip(color):
+    return uint15_to_color(color_to_uint15(color))
 
 
 def uint7_roundtrip(color):
     return uint7_to_color(color_to_uint7(color))
 
 
-def test_color_quantization_fits_in_uint16():
-    assert color_to_uint16((255, 255, 255)) < 2 ** 16
+def test_color_quantization_fits_in_uint15():
+    assert color_to_uint15((255, 255, 255)) < 2 ** 16
 
 
-def test_color_quantization_16():
-    assert uint16_roundtrip((0, 0, 0)) == (0, 0, 0)
-    assert uint16_roundtrip((255, 0, 0)) == (252, 0, 0)
-    assert uint16_roundtrip((100, 100, 100)) == (98, 98, 98)
-    assert uint16_roundtrip((75, 150, 225)) == (70, 147, 224)
+def test_color_quantization_15():
+    assert uint15_roundtrip((0, 0, 0)) == (0, 0, 0)
+    assert uint15_roundtrip((255, 0, 0)) == (248, 0, 0)
+    assert uint15_roundtrip((100, 100, 100)) == (96, 96, 96)
+    assert uint15_roundtrip((75, 150, 225)) == (72, 144, 224)
 
 
 def test_color_quantization_fits_in_uint7():
