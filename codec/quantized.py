@@ -72,19 +72,13 @@ def read_8bit_quantized_frame(file: BinaryIO, resolution: Tuple[int, int]):
 def read_quantized_frame(resolution: Tuple[int, int], read_quantized_pixel: Callable[[], int],
     decode_pixel: Callable[[int], RGB], flag_bitmask: int, run_length_bitmask: int) -> List[int]:
     buf = []
-    run_length_color = None
+    color = None
     while len(buf) < resolution[0] * resolution[1] * 3:
         q = read_quantized_pixel()
         if not q & flag_bitmask:
             color = decode_pixel(q)
-            buf.append(color[0])
-            buf.append(color[1])
-            buf.append(color[2])
-            run_length_color = color
+            buf += color
         else:
             run_length = q & run_length_bitmask
-            for j in range(run_length):
-                buf.append(run_length_color[0])
-                buf.append(run_length_color[1])
-                buf.append(run_length_color[2])
+            buf += color * run_length
     return buf
