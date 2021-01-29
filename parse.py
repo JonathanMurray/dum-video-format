@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import sys
 
-from format import Decoder, FrameType
+from format import Decoder
+from common import FrameType
 
 
 def parse_file(path: str):

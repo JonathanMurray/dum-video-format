@@ -1,9 +1,13 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Tuple, List, Callable
+from typing import BinaryIO, Tuple, List
 
-from color_quantization import uint15_to_color, color_to_uint7, uint7_to_color, color_to_uint15
-from io_utils import uint8_to_bytes, RGB, uint32_to_bytes, bytes_to_int, write_rgb, read_rgb, uint16_to_bytes
+from codec.colormapped import read_color_mapped_frame, write_color_mapped_frame
+from codec.quantized import read_16bit_quantized_frame, read_8bit_quantized_frame, write_8bit_quantized_frame, \
+    write_16bit_quantized_frame
+from codec.raw import write_raw_frame, read_raw_frame
+from common import FrameType
+from io_utils import uint8_to_bytes, RGB, uint32_to_bytes, bytes_to_int, uint16_to_bytes
 
 DEBUG = False
 
@@ -122,74 +126,18 @@ def _skip_frame(file: BinaryIO) -> Tuple[int, int]:
 
 def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
     frame_type = bytes_to_int(file.read(1))
-    file.read(4)  # frame size
+    frame_size = bytes_to_int(file.read(4))  # frame size
     if frame_type == FrameType.RAW.value:
-        debug("Reading raw frame...")
-        buf = _read_raw_frame(file, resolution)
+        buf = read_raw_frame(file, frame_size)
     elif frame_type == FrameType.COLOR_MAPPED.value:
-        debug("Reading color-mapped frame...")
-        buf = _read_color_mapped_frame(file, resolution)
+        buf = read_color_mapped_frame(file, resolution)
     elif frame_type == FrameType.QUANTIZED_TO_16_BIT.value:
-        debug("Reading 16-bit quantized frame...")
-        buf = _read_quantized_frame(resolution, read_quantized_pixel=lambda: bytes_to_int(file.read(2)),
-                                    decode_pixel=uint15_to_color, flag_bitmask=0b10000000_00000000,
-                                    run_length_bitmask=0b01111111_11111111)
+        buf = read_16bit_quantized_frame(file, resolution)
     elif frame_type == FrameType.QUANTIZED_TO_8_BIT.value:
-        debug("Reading 8-bit quantized frame...")
-        buf = _read_quantized_frame(resolution, read_quantized_pixel=lambda: bytes_to_int(file.read(1)),
-                                    decode_pixel=uint7_to_color, flag_bitmask=0b10000000, run_length_bitmask=0b01111111)
+        buf = read_8bit_quantized_frame(file, resolution)
     else:
         raise ValueError(f"Read unexpected frame type: {frame_type}, offset={file.tell() - 1}")
     return buf
-
-
-def _read_color_mapped_frame(file: BinaryIO, resolution: Tuple[int, int]):
-    num_colors = bytes_to_int(file.read(1))
-    color_map = [read_rgb(file) for _ in range(num_colors)]
-    buf = []
-    for i in range(resolution[0] * resolution[1]):
-        color_index = bytes_to_int(file.read(1))
-        color = color_map[color_index]
-        buf.append(color[0])
-        buf.append(color[1])
-        buf.append(color[2])
-    return buf
-
-
-def _read_raw_frame(file: BinaryIO, resolution: Tuple[int, int]):
-    frame_size = resolution[0] * resolution[1] * 3
-    buf = file.read(frame_size)
-    if len(buf) < frame_size:
-        print(f"WARN: Read {len(buf)} bytes - not enough for a full frame!")
-    return buf
-
-
-def _read_quantized_frame(resolution: Tuple[int, int], read_quantized_pixel: Callable[[], int],
-    decode_pixel: Callable[[int], RGB], flag_bitmask: int, run_length_bitmask: int) -> List[int]:
-    buf = []
-    run_length_color = None
-    while len(buf) < resolution[0] * resolution[1] * 3:
-        q = read_quantized_pixel()
-        if not q & flag_bitmask:
-            color = decode_pixel(q)
-            buf.append(color[0])
-            buf.append(color[1])
-            buf.append(color[2])
-            run_length_color = color
-        else:
-            run_length = q & run_length_bitmask
-            for j in range(run_length):
-                buf.append(run_length_color[0])
-                buf.append(run_length_color[1])
-                buf.append(run_length_color[2])
-    return buf
-
-
-class FrameType(Enum):
-    RAW = 1
-    COLOR_MAPPED = 2
-    QUANTIZED_TO_16_BIT = 3
-    QUANTIZED_TO_8_BIT = 4
 
 
 class Quality(Enum):
@@ -233,68 +181,3 @@ def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LO
             write_raw_frame(file, pixels)
         else:
             raise ValueError(f"Unhandled quality: {quality}")
-
-
-def write_color_mapped_frame(color_map: List[RGB], file: BinaryIO, pixels: List[RGB]):
-    debug("Writing color-mapped frame")
-    # Frame type
-    file.write(uint8_to_bytes(FrameType.COLOR_MAPPED.value))
-    # Frame size
-    file.write(uint32_to_bytes(1 + len(color_map) * 3 + len(pixels)))
-    file.write(uint8_to_bytes(len(color_map)))
-    for key_color in color_map:
-        write_rgb(file, key_color)
-    for i, pixel in enumerate(pixels):
-        file.write(uint8_to_bytes(color_map.index(pixel)))
-
-
-def write_raw_frame(file: BinaryIO, pixels: List[RGB]):
-    debug("Writing raw frame")
-    # Frame type
-    file.write(uint8_to_bytes(FrameType.RAW.value))
-    # Frame size
-    file.write(uint32_to_bytes(len(pixels) * 3))
-    for pixel in pixels:
-        write_rgb(file, pixel)
-
-
-def write_8bit_quantized_frame(file: BinaryIO, pixels: List[RGB]):
-    debug("Writing 8-bit quantized frame")
-    _write_quantized_frame(file, pixels, quantize_color=color_to_uint7, max_run_length=127, bitsize=8,
-                           to_bytes=uint8_to_bytes, frame_type=FrameType.QUANTIZED_TO_8_BIT)
-
-
-def write_16bit_quantized_frame(file: BinaryIO, pixels: List[RGB]):
-    debug("Writing 16-bit quantized frame")
-    _write_quantized_frame(file, pixels, quantize_color=color_to_uint15, max_run_length=32_767, bitsize=16,
-                           to_bytes=uint16_to_bytes, frame_type=FrameType.QUANTIZED_TO_16_BIT)
-
-
-def _write_quantized_frame(file: BinaryIO, pixels: List[RGB], quantize_color: Callable[[RGB], int], max_run_length: int,
-    bitsize: int, to_bytes: Callable[[int], bytes], frame_type: FrameType):
-    file.write(uint8_to_bytes(frame_type.value))
-    # Frame size is written at the end
-    frame_size_offset = file.tell()
-    file.write(uint32_to_bytes(0))
-    frame_content_offset = file.tell()
-    quantized_pixels = [quantize_color(p) for p in pixels]
-    run_length_pixel = None
-    accumulated_run_length = 0
-    for p in quantized_pixels:
-        if p != run_length_pixel or accumulated_run_length == max_run_length:
-            if accumulated_run_length:
-                debug(f"Writing accumulated run-length: {accumulated_run_length}, color {run_length_pixel}")
-                file.write(to_bytes((1 << (bitsize - 1)) + accumulated_run_length))
-            file.write(to_bytes(p))
-            run_length_pixel = p
-            accumulated_run_length = 0
-        else:
-            # Same pixel as last one => start counting
-            accumulated_run_length += 1
-    if accumulated_run_length:
-        debug(f"Writing last accumulated run-length: {accumulated_run_length}, color {run_length_pixel}")
-        file.write(to_bytes((1 << (bitsize - 1)) + accumulated_run_length))
-    frame_size = file.tell() - frame_content_offset
-    file.seek(frame_size_offset)
-    file.write(uint32_to_bytes(frame_size))
-    file.seek(0, 2)
