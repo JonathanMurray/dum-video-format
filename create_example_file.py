@@ -3,7 +3,8 @@ import sys
 from random import randint
 from typing import List
 
-from format import write_header, write_frame, Quality
+from format import write_frame, Quality
+from header import write_header
 from io_utils import RGB
 
 content = [

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-from format import write_header, write_frame
+from format import write_frame
+from header import write_header
 
 with open("simple.dum", "wb") as file:
     red = (255, 0, 0)

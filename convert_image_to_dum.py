@@ -3,7 +3,8 @@ import sys
 
 import pygame
 
-from format import write_header, write_frame, Quality
+from format import write_frame, Quality
+from header import write_header
 from pygame_utils import get_surface_pixels
 
 

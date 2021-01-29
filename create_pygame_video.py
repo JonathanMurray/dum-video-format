@@ -5,7 +5,8 @@ import pygame
 from pygame import Surface
 from pygame.rect import Rect
 
-from format import write_header, write_frame
+from format import write_frame
+from header import write_header
 from play import play_file
 from pygame_utils import get_surface_pixels
 

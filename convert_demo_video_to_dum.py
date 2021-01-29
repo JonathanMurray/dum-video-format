@@ -5,7 +5,8 @@ from typing import BinaryIO, Tuple
 
 import av
 
-from format import write_header, write_frame, Quality
+from format import write_frame, Quality
+from header import write_header
 from play import play_file
 
 DEBUG = False

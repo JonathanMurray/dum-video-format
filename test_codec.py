@@ -1,6 +1,7 @@
 from io import BytesIO
 
-from format import write_header, Decoder, DumInfo, write_frame, _read_frame, write_8bit_quantized_frame
+from format import Decoder, write_frame, _read_frame, write_8bit_quantized_frame
+from header import write_header, DumInfo
 
 
 def test_write_header():

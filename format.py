@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import Enum
 from typing import BinaryIO, Tuple, List
 
@@ -7,7 +6,8 @@ from codec.quantized import read_16bit_quantized_frame, read_8bit_quantized_fram
     write_16bit_quantized_frame
 from codec.raw import write_raw_frame, read_raw_frame
 from common import FrameType
-from io_utils import uint8_to_bytes, RGB, uint32_to_bytes, bytes_to_int, uint16_to_bytes
+from header import read_header, DumInfo
+from io_utils import RGB, bytes_to_int
 
 DEBUG = False
 
@@ -21,18 +21,6 @@ def log(text: str):
     print(text)
 
 
-@dataclass
-class DumInfo:
-    frame_rate: int
-    width: int
-    height: int
-    hor_scaling: int
-    ver_scaling: int
-    num_frames: int
-    header_size: int
-    file_size: int
-
-
 class Decoder:
     def __init__(self, file: BinaryIO):
         self._file = file
@@ -40,9 +28,10 @@ class Decoder:
         self._frame_index = 0
 
     def read_header(self) -> DumInfo:
+        self._file.seek(0)
         if self._info:
             raise Exception("Header has already been parsed!")
-        self._info = _read_header(self._file)
+        self._info = read_header(self._file)
         return self._info
 
     def read_frame(self) -> List[int]:
@@ -86,35 +75,6 @@ class Decoder:
         return self._info
 
 
-def _read_header(file: BinaryIO) -> DumInfo:
-    file.seek(0, 2)
-    file_size = file.tell()
-    file.seek(0, 0)
-
-    header_size = 0
-
-    magic_string = file.read(4)
-    if magic_string != b'dumv':
-        raise Exception(f"Invalid DUM file! Expected magic string 'dumv' but found {magic_string}.")
-    header_size += 4
-
-    def read(size: int) -> int:
-        nonlocal header_size
-        n = bytes_to_int(file.read(size))
-        header_size += size
-        return n
-
-    frame_rate = read(1)
-    width = read(2)
-    height = read(2)
-    hor_scaling = read(1)
-    ver_scaling = read(1)
-
-    num_frames = read(4)
-
-    return DumInfo(frame_rate, width, height, hor_scaling, ver_scaling, num_frames, header_size, file_size)
-
-
 def _skip_frame(file: BinaryIO) -> Tuple[int, int]:
     frame_type = bytes_to_int(file.read(1))
     if frame_type not in (t.value for t in FrameType):
@@ -144,27 +104,6 @@ class Quality(Enum):
     LOW = 0
     MEDIUM = 1
     LOSSLESS = 2
-
-
-def write_header(file: BinaryIO, frame_rate: int, resolution: Tuple[int, int], scaling: Tuple[int, int],
-    num_frames: int):
-    # magic string
-    file.write(b'dumv')
-    file.write(uint8_to_bytes(frame_rate))
-
-    # width
-    file.write(uint16_to_bytes(resolution[0]))
-
-    # height
-    file.write(uint16_to_bytes(resolution[1]))
-
-    # horizontal scale
-    file.write(uint8_to_bytes(scaling[0]))
-
-    # vertical scale
-    file.write(uint8_to_bytes(scaling[1]))
-
-    file.write(uint32_to_bytes(num_frames))
 
 
 def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LOSSLESS):
