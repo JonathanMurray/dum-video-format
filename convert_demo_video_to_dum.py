@@ -17,7 +17,8 @@ def debug(text: str):
         print(text)
 
 
-def convert(outfile: BinaryIO, resolution: Tuple[int, int], scaling: Tuple[int, int], num_frames: int):
+def convert(outfile: BinaryIO, resolution: Tuple[int, int], scaling: Tuple[int, int], num_frames: int,
+    quality: Quality):
     with open("night-sky.h264", "rb") as file:
         codec = av.CodecContext.create("h264", "r")
 
@@ -39,7 +40,7 @@ def convert(outfile: BinaryIO, resolution: Tuple[int, int], scaling: Tuple[int, 
                     image_data = list(frame.to_image().getdata())
                     before = time()
                     offset_before = outfile.tell()
-                    write_frame(outfile, image_data, quality=Quality.LOW)
+                    write_frame(outfile, image_data, quality=quality)
                     debug(
                         f"        It took {round(time() - before, 2)}s to write frame ({outfile.tell() - offset_before}B)")
                     frame_i += 1
@@ -47,13 +48,14 @@ def convert(outfile: BinaryIO, resolution: Tuple[int, int], scaling: Tuple[int, 
 
 def convert_to_file(filename: str):
     with open(filename, "wb") as outfile:
-        convert(outfile, resolution=(160, 90), scaling=(4, 4), num_frames=50)
+        convert(outfile, resolution=(160, 90), scaling=(4, 4), num_frames=50, quality=Quality.LOSSLESS)
 
 
 def convert_and_play_in_memory():
     outfile = BytesIO()
-    convert(outfile, resolution=(160, 90), scaling=(4, 4), num_frames=50)
-    play_file(outfile, "Night sky")
+    quality = Quality.MEDIUM
+    convert(outfile, resolution=(160, 90), scaling=(4, 4), num_frames=150, quality=quality)
+    play_file(outfile, f"Night sky ({quality.name})")
 
 
 def main():
