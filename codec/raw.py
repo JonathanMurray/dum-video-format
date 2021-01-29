@@ -26,5 +26,4 @@ def read_raw_frame(file: BinaryIO, frame_size: int) -> List[int]:
     buf = file.read(frame_size)
     if len(buf) < frame_size:
         print(f"WARN: Read {len(buf)} bytes - not enough for a full frame!")
-    # TODO Fix bug
-    return buf
+    return list(buf)
