@@ -39,6 +39,18 @@ def test_write_and_read_full_file():
     assert decoder.read_frame() == [150, 150, 150, 250, 250, 250]
 
 
+def test_run_length_frame():
+    io = BytesIO()
+    pixels = [(255, 255, 255)] * 100
+    write_8bit_quantized_frame(io, pixels)
+    assert list(io.getbuffer()) == [
+        4,  # frame type
+        0, 0, 0, 2,  # frame size = 2 bytes
+        0b01111111,  # "white" encoded as 1 byte
+        0b10000000 + 99,  # repeated 99 additional times
+    ]
+
+
 def test_write_and_read_run_length_frame():
     io = BytesIO()
     w = 100
