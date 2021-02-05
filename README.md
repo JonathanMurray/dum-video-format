@@ -9,7 +9,7 @@ Disclaimer: this project exists only for educational purposes.
 
 ```bash
 # Create a DUM video file
-./create_example_file.py hello_world.dum
+./create_hello_world.py hello_world.dum
  
 # Play it
 ./play.py hello_world.dum
@@ -37,7 +37,7 @@ After the header comes the frame data.
 
 Frame header:
 ```
-- frame_type (1) = 1 (raw), 2 (color-mapped), 3 (quantized 16bit), or 4 (quantized 8bit)
+- frame_type (1) = 1 (raw), 2 (color-mapped), 3 (quantized 16bit), 4 (quantized 8bit), or 5 (last frame repeated)
 - frame_size (4)
 ```
 
@@ -62,3 +62,7 @@ A quantized frame contains the following data:
 - pixels (num_rows * num_cols * n) 
 ```
 where n is either 1 or 2 bytes depending on the quantization mode.
+
+#### Repeated frame
+This frame contains no data but simply indicates that the pixels are completely identical to the 
+frame just before it.

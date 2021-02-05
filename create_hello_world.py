@@ -15,10 +15,11 @@ content = [
     " X   X   X       X       X       X   X         W W W W      X   X   X  X    X       X   X           ",
     " X   X   XXXXX   XXXXX   XXXXX   XXXXX          W   W       XXXXX   X   X   XXXXX   XXXX            ",
     "",
+    "",
 ]
 
 CONTENT_WIDTH = max([len(line) for line in content])
-WIDTH = 50
+WIDTH = 52
 HEIGHT = len(content)
 
 
