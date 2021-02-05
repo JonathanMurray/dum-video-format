@@ -6,7 +6,7 @@ from codec.quantized import read_16bit_quantized_frame, read_8bit_quantized_fram
     write_16bit_quantized_frame
 from codec.raw import write_raw_frame, read_raw_frame
 from common import FrameType
-from header import read_header, DumInfo
+from header import read_header, DumInfo, write_header
 from io_utils import Color, bytes_to_int
 
 DEBUG = False
@@ -104,6 +104,24 @@ class Quality(Enum):
     LOW = 0
     MEDIUM = 1
     LOSSLESS = 2
+
+
+class Encoder:
+    def __init__(self, file: BinaryIO, quality: Quality = Quality.LOSSLESS):
+        self._file = file
+        self._quality = quality
+        self._has_written_header = False
+
+    def write_header(self, frame_rate: int, resolution: Tuple[int, int], scaling: Tuple[int, int], num_frames: int):
+        if self._has_written_header:
+            raise Exception("Has already written header!")
+        write_header(self._file, frame_rate, resolution, scaling, num_frames)
+        self._has_written_header = True
+
+    def write_frame(self, pixels: List[Color]):
+        if not self._has_written_header:
+            raise Exception("Must write header before writing frames!")
+        write_frame(self._file, pixels, self._quality)
 
 
 def write_frame(file: BinaryIO, pixels: List[Color], quality: Quality = Quality.LOSSLESS):

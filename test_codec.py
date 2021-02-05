@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from format import Decoder, write_frame, _read_frame, write_8bit_quantized_frame
+from format import Decoder, write_frame, _read_frame, write_8bit_quantized_frame, Encoder
 from header import write_header, DumInfo
 
 
@@ -20,18 +20,20 @@ def test_write_and_read_header():
 
 def test_write_full_file():
     io = BytesIO()
-    write_header(io, frame_rate=1, resolution=(4, 4), scaling=(4, 5), num_frames=2)
-    write_frame(io, [(0, 0, 0), (100, 100, 100)] + [(0, 0, 0)] * 14)
-    write_frame(io, [(150, 150, 150), (250, 250, 250)] + [(0, 0, 0)] * 14)
+    encoder = Encoder(io)
+    encoder.write_header(frame_rate=1, resolution=(4, 4), scaling=(4, 5), num_frames=2)
+    encoder.write_frame([(0, 0, 0), (100, 100, 100)] + [(0, 0, 0)] * 14)
+    encoder.write_frame([(150, 150, 150), (250, 250, 250)] + [(0, 0, 0)] * 14)
 
 
 def test_write_and_read_full_file():
     io = BytesIO()
-    write_header(io, frame_rate=1, resolution=(4, 4), scaling=(4, 5), num_frames=2)
-    write_frame(io, [(0, 0, 0), (100, 100, 100)] + [(0, 0, 0)] * 14)
-    write_frame(io, [(150, 150, 150), (250, 250, 250)] + [(0, 0, 0)] * 14)
-    decoder = Decoder(io)
+    encoder = Encoder(io)
+    encoder.write_header(frame_rate=1, resolution=(4, 4), scaling=(4, 5), num_frames=2)
+    encoder.write_frame([(0, 0, 0), (100, 100, 100)] + [(0, 0, 0)] * 14)
+    encoder.write_frame([(150, 150, 150), (250, 250, 250)] + [(0, 0, 0)] * 14)
 
+    decoder = Decoder(io)
     decoder.read_header()
     assert decoder.info == DumInfo(frame_rate=1, width=4, height=4, hor_scaling=4, ver_scaling=5,
                                    num_frames=2, header_size=15, file_size=74)
