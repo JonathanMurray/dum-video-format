@@ -12,13 +12,12 @@ class DumInfo:
     hor_scaling: int
     ver_scaling: int
     num_frames: int
-    header_size: int
+    first_frame_offset: int
     file_size: int
 
 
 def write_header(file: BinaryIO, frame_rate: int, resolution: Tuple[int, int], scaling: Tuple[int, int],
     num_frames: int):
-
     if resolution[0] % 4 != 0 or resolution[1] % 4 != 0:
         raise ValueError(f"Width and height must be multiples of 4! (Got: {resolution})")
 

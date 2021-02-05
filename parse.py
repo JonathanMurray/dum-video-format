@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 import sys
 
-from format import Decoder
 from common import FrameType
+from format import Decoder
+from header import read_header
 
 
 def parse_file(path: str):
     with open(path, "rb") as file:
-        decoder = Decoder(file)
-        info = decoder.read_header()
+        info = read_header(file)
+        decoder = Decoder(file, info)
         print(f"{info}")
         for _ in range(info.num_frames):
             frame_type, frame_size = decoder.skip_frame()

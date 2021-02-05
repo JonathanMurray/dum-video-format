@@ -6,3 +6,4 @@ class FrameType(Enum):
     COLOR_MAPPED = 2
     QUANTIZED_TO_16_BIT = 3
     QUANTIZED_TO_8_BIT = 4
+    REPEATED = 5

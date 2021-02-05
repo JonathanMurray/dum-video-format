@@ -8,6 +8,7 @@ from pygame.surface import Surface
 from pygame.time import Clock
 
 from format import Decoder
+from header import read_header
 
 DEBUG = False
 LOOP = True
@@ -42,9 +43,8 @@ def play_file_at_path(path: str):
 
 
 def play_file(file: BinaryIO, caption: str):
-    decoder = Decoder(file)
-    decoder.read_header()
-    info = decoder.info
+    info = read_header(file)
+    decoder = Decoder(file, info)
 
     debug(f"Parsed header. Video consists of {info.num_frames} frames")
     pygame.init()
@@ -112,7 +112,6 @@ def draw_frame(screen: Surface, rect: Rect, frame: List[int], frame_resolution: 
 
 
 def fast_draw_bgr_frame(screen: Surface, frame: List[int], resolution: Tuple[int, int], scale: Tuple[int, int]):
-
     frame_surface = Surface(resolution, depth=24)
     view = frame_surface.get_view()
     view.write(bytes(frame))

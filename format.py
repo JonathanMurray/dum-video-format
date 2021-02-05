@@ -5,8 +5,9 @@ from codec.colormapped import read_color_mapped_frame, write_color_mapped_frame
 from codec.quantized import read_16bit_quantized_frame, read_8bit_quantized_frame, write_8bit_quantized_frame, \
     write_16bit_quantized_frame
 from codec.raw import write_raw_frame, read_raw_frame
+from codec.repeated import write_repeated_frame
 from common import FrameType
-from header import read_header, DumInfo, write_header
+from header import DumInfo, write_header
 from io_utils import Color, bytes_to_int
 
 DEBUG = False
@@ -22,28 +23,42 @@ def log(text: str):
 
 
 class Decoder:
-    def __init__(self, file: BinaryIO):
+    def __init__(self, file: BinaryIO, info: DumInfo):
         self._file = file
-        self._info = None
+        self._info = info
         self._frame_index = 0
-
-    def read_header(self) -> DumInfo:
-        self._file.seek(0)
-        if self._info:
-            raise Exception("Header has already been parsed!")
-        self._info = read_header(self._file)
-        return self._info
+        self._previous_frame = None
 
     def read_frame(self) -> List[int]:
         info = self.info
         try:
-            frame = _read_frame(self._file, (info.width, info.height))
+            frame = self._read_frame(self._file)
         except Exception as e:
             raise Exception(f"Failed to read frame {self._frame_index}") from e
         self._frame_index += 1
         debug(f"Frame {self._frame_index}/{info.num_frames}")
         debug(f"{self._file.tell()}/{info.file_size} bytes")
         return frame
+
+    def _read_frame(self, file: BinaryIO) -> List[int]:
+        frame_type = bytes_to_int(file.read(1))
+        frame_size = bytes_to_int(file.read(4))  # frame size
+        if frame_type == FrameType.RAW.value:
+            buf = read_raw_frame(file, frame_size)
+        elif frame_type == FrameType.COLOR_MAPPED.value:
+            buf = read_color_mapped_frame(file, frame_size)
+        elif frame_type == FrameType.QUANTIZED_TO_16_BIT.value:
+            buf = read_16bit_quantized_frame(file, frame_size)
+        elif frame_type == FrameType.QUANTIZED_TO_8_BIT.value:
+            buf = read_8bit_quantized_frame(file, frame_size)
+        elif frame_type == FrameType.REPEATED.value:
+            if self._previous_frame is None:
+                raise Exception("Encountered REPEATED frame as first frame!")
+            buf = self._previous_frame
+        else:
+            raise ValueError(f"Read unexpected frame type: {frame_type}, offset={file.tell() - 1}")
+        self._previous_frame = buf
+        return buf
 
     def skip_frame(self) -> Tuple[int, int]:
         frame_type, frame_size = _skip_frame(self._file)
@@ -65,13 +80,11 @@ class Decoder:
         return target_frame
 
     def seek_to_beginning(self):
-        self._file.seek(self.info.header_size)
+        self._file.seek(self.info.first_frame_offset)
         self._frame_index = 0
 
     @property
     def info(self) -> DumInfo:
-        if not self._info:
-            raise Exception("Must parse header before getting info!")
         return self._info
 
 
@@ -82,22 +95,6 @@ def _skip_frame(file: BinaryIO) -> Tuple[int, int]:
     frame_size = bytes_to_int(file.read(4))
     file.seek(frame_size, 1)
     return frame_type, frame_size
-
-
-def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
-    frame_type = bytes_to_int(file.read(1))
-    frame_size = bytes_to_int(file.read(4))  # frame size
-    if frame_type == FrameType.RAW.value:
-        buf = read_raw_frame(file, frame_size)
-    elif frame_type == FrameType.COLOR_MAPPED.value:
-        buf = read_color_mapped_frame(file, resolution)
-    elif frame_type == FrameType.QUANTIZED_TO_16_BIT.value:
-        buf = read_16bit_quantized_frame(file, frame_size)
-    elif frame_type == FrameType.QUANTIZED_TO_8_BIT.value:
-        buf = read_8bit_quantized_frame(file, frame_size)
-    else:
-        raise ValueError(f"Read unexpected frame type: {frame_type}, offset={file.tell() - 1}")
-    return buf
 
 
 class Quality(Enum):
@@ -111,6 +108,7 @@ class Encoder:
         self._file = file
         self._quality = quality
         self._has_written_header = False
+        self._previous_frame = None
 
     def write_header(self, frame_rate: int, resolution: Tuple[int, int], scaling: Tuple[int, int], num_frames: int):
         if self._has_written_header:
@@ -121,7 +119,11 @@ class Encoder:
     def write_frame(self, pixels: List[Color]):
         if not self._has_written_header:
             raise Exception("Must write header before writing frames!")
-        write_frame(self._file, pixels, self._quality)
+        if self._previous_frame == pixels:
+            write_repeated_frame(self._file)
+        else:
+            self._previous_frame = pixels
+            write_frame(self._file, pixels, self._quality)
 
 
 def write_frame(file: BinaryIO, pixels: List[Color], quality: Quality = Quality.LOSSLESS):

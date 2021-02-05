@@ -1,4 +1,4 @@
-from typing import BinaryIO, Tuple, List
+from typing import BinaryIO, List
 
 from common import FrameType
 from io_utils import bytes_to_int, read_rgb, Color, uint8_to_bytes, uint32_to_bytes, write_rgb
@@ -24,7 +24,7 @@ def write_color_mapped_frame(color_map: List[Color], file: BinaryIO, pixels: Lis
         file.write(uint8_to_bytes(color_map.index(pixel)))
 
 
-def read_color_mapped_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
+def read_color_mapped_frame(file: BinaryIO, frame_size: int) -> List[int]:
     debug("Reading color-mapped frame...")
     num_colors = bytes_to_int(file.read(1))
 
@@ -34,7 +34,7 @@ def read_color_mapped_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List
 
     bgr_colormap = [read_bgr() for _ in range(num_colors)]
     buf = []
-    color_indices = list(file.read(resolution[0] * resolution[1]))
+    color_indices = list(file.read(frame_size - 1 - num_colors * 3))
     for color_index in color_indices:
         buf += bgr_colormap[color_index]
     return buf
