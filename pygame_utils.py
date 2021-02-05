@@ -2,10 +2,10 @@ from typing import Iterator
 
 from pygame import Surface
 
-from io_utils import RGB
+from io_utils import Color
 
 
-def get_surface_pixels(surface: Surface) -> Iterator[RGB]:
+def get_surface_pixels(surface: Surface) -> Iterator[Color]:
     w = surface.get_width()
     h = surface.get_height()
     for y in range(h):

@@ -5,7 +5,7 @@ from typing import List
 
 from format import write_frame, Quality
 from header import write_header
-from io_utils import RGB
+from io_utils import Color
 
 content = [
     "",
@@ -29,7 +29,7 @@ def create_file(path: str):
         write_header(file, frame_rate=30, resolution=(WIDTH, HEIGHT), scaling=(16, 20), num_frames=num_frames)
 
         for frame in range(num_frames):
-            frame_pixels: List[RGB] = []
+            frame_pixels: List[Color] = []
             for y, line in enumerate(content):
                 for x in range(WIDTH):
                     xx = (x + frame) % CONTENT_WIDTH

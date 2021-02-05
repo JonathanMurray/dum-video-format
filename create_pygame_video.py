@@ -12,7 +12,7 @@ from pygame_utils import get_surface_pixels
 
 file = BytesIO()
 num_frames = 300
-surface = Surface((150, 30))
+surface = Surface((160, 30))
 
 write_header(file, frame_rate=30, resolution=surface.get_size(), scaling=(3, 3), num_frames=num_frames)
 rect = Rect(5, 5, 20, 20)

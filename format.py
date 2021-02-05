@@ -7,7 +7,7 @@ from codec.quantized import read_16bit_quantized_frame, read_8bit_quantized_fram
 from codec.raw import write_raw_frame, read_raw_frame
 from common import FrameType
 from header import read_header, DumInfo
-from io_utils import RGB, bytes_to_int
+from io_utils import Color, bytes_to_int
 
 DEBUG = False
 
@@ -92,9 +92,9 @@ def _read_frame(file: BinaryIO, resolution: Tuple[int, int]) -> List[int]:
     elif frame_type == FrameType.COLOR_MAPPED.value:
         buf = read_color_mapped_frame(file, resolution)
     elif frame_type == FrameType.QUANTIZED_TO_16_BIT.value:
-        buf = read_16bit_quantized_frame(file, resolution)
+        buf = read_16bit_quantized_frame(file, frame_size)
     elif frame_type == FrameType.QUANTIZED_TO_8_BIT.value:
-        buf = read_8bit_quantized_frame(file, resolution)
+        buf = read_8bit_quantized_frame(file, frame_size)
     else:
         raise ValueError(f"Read unexpected frame type: {frame_type}, offset={file.tell() - 1}")
     return buf
@@ -106,7 +106,7 @@ class Quality(Enum):
     LOSSLESS = 2
 
 
-def write_frame(file: BinaryIO, pixels: List[RGB], quality: Quality = Quality.LOSSLESS):
+def write_frame(file: BinaryIO, pixels: List[Color], quality: Quality = Quality.LOSSLESS):
     colors = list(set(pixels))
 
     if len(colors) < 256:

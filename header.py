@@ -18,6 +18,10 @@ class DumInfo:
 
 def write_header(file: BinaryIO, frame_rate: int, resolution: Tuple[int, int], scaling: Tuple[int, int],
     num_frames: int):
+
+    if resolution[0] % 4 != 0 or resolution[1] % 4 != 0:
+        raise ValueError(f"Width and height must be multiples of 4! (Got: {resolution})")
+
     # magic string
     file.write(b'dumv')
     file.write(uint8_to_bytes(frame_rate))

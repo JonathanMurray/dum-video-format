@@ -13,7 +13,7 @@ def test_write_read_large_frame():
         for x in range(w):
             pixels.append((x % 255, ((x * y) + 1) % 255, ((x * y) + 2) % 255))
     start = time()
-    write_frame(file, pixels, Quality.LOSSLESS)
+    write_frame(file, pixels, Quality.MEDIUM)
     print(f"It took {round(time() - start, 2)}s to write frame")
 
     file.seek(0)

@@ -1,6 +1,6 @@
 from typing import Tuple, BinaryIO
 
-RGB = Tuple[int, int, int]
+Color = Tuple[int, int, int]
 
 
 def uint8_to_bytes(n: int) -> bytes:
@@ -26,11 +26,15 @@ class ReadError(Exception):
         super().__init__(message)
 
 
-def write_rgb(file: BinaryIO, rgb: RGB):
+def write_rgb(file: BinaryIO, rgb: Color):
     file.write(bytes(rgb))
 
 
-def read_rgb(file: BinaryIO) -> RGB:
+def write_bgr(file: BinaryIO, rgb: Color):
+    file.write(bytes((rgb[2], rgb[1], rgb[0])))
+
+
+def read_rgb(file: BinaryIO) -> Color:
     buf = file.read(3)
     if len(buf) != 3:
         raise ReadError(f"Expected 3 bytes but only got {len(buf)}")

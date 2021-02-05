@@ -90,7 +90,8 @@ def play_file(file: BinaryIO, caption: str):
 
         debug(f"Time: {round(frame_i / info.frame_rate, 2)}s")
 
-        draw_frame(screen, pixel_rect, frame, (info.width, info.height))
+        # draw_frame(screen, pixel_rect, frame, (info.width, info.height))
+        fast_draw_bgr_frame(screen, frame, (info.width, info.height), (info.hor_scaling, info.ver_scaling))
         seekbar.set_progress(frame_i / info.num_frames)
         seekbar.redraw()
         screen.blit(seekbar.surface, seekbar_pos)
@@ -108,6 +109,16 @@ def draw_frame(screen: Surface, rect: Rect, frame: List[int], frame_resolution: 
             rect.x = x * rect.w
             rect.y = y * rect.h
             pygame.draw.rect(screen, (r, g, b), rect)
+
+
+def fast_draw_bgr_frame(screen: Surface, frame: List[int], resolution: Tuple[int, int], scale: Tuple[int, int]):
+
+    frame_surface = Surface(resolution, depth=24)
+    view = frame_surface.get_view()
+    view.write(bytes(frame))
+    del view
+    frame_surface = pygame.transform.scale(frame_surface, (resolution[0] * scale[0], resolution[1] * scale[1]))
+    screen.blit(frame_surface, (0, 0))
 
 
 def exit_program():

@@ -1,16 +1,20 @@
-from color_quantization import color_to_uint15, uint15_to_color, color_to_uint7, uint7_to_color
+from color_quantization import rgb_to_uint15, uint15_to_rgb, rgb_to_uint7, uint7_to_rgb
 
 
 def uint15_roundtrip(color):
-    return uint15_to_color(color_to_uint15(color))
+    return uint15_to_rgb(rgb_to_uint15(color))
 
 
-def uint7_roundtrip(color):
-    return uint7_to_color(color_to_uint7(color))
+def uint7_rgb_roundtrip(color):
+    return uint7_to_rgb(rgb_to_uint7(color))
+
+
+
+
 
 
 def test_color_quantization_fits_in_uint15():
-    assert color_to_uint15((255, 255, 255)) < 2 ** 16
+    assert rgb_to_uint15((255, 255, 255)) < 2 ** 16
 
 
 def test_color_quantization_15():
@@ -21,11 +25,11 @@ def test_color_quantization_15():
 
 
 def test_color_quantization_fits_in_uint7():
-    assert color_to_uint7((255, 255, 255)) < 2 ** 7
+    assert rgb_to_uint7((255, 255, 255)) < 2 ** 7
 
 
 def test_color_quantization_7():
-    assert uint7_roundtrip((0, 0, 0)) == (16, 16, 16)
-    assert uint7_roundtrip((255, 0, 0)) == (240, 16, 16)
-    assert uint7_roundtrip((100, 100, 100)) == (112, 80, 80)
-    assert uint7_roundtrip((75, 150, 225)) == (80, 144, 208)
+    assert uint7_rgb_roundtrip((0, 0, 0)) == (16, 16, 16)
+    assert uint7_rgb_roundtrip((255, 0, 0)) == (240, 16, 16)
+    assert uint7_rgb_roundtrip((100, 100, 100)) == (112, 80, 80)
+    assert uint7_rgb_roundtrip((75, 150, 225)) == (80, 144, 208)

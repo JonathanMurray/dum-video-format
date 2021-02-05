@@ -6,37 +6,37 @@ from header import write_header, DumInfo
 
 def test_write_header():
     io = BytesIO()
-    write_header(io, frame_rate=10, resolution=(20, 30), scaling=(40, 50), num_frames=60)
+    write_header(io, frame_rate=10, resolution=(20, 32), scaling=(40, 50), num_frames=60)
 
 
 def test_write_and_read_header():
     io = BytesIO()
-    write_header(io, 10, (20, 30), (40, 50), 60)
+    write_header(io, 10, (20, 32), (40, 50), 60)
     decoder = Decoder(io)
     decoder.read_header()
-    assert decoder.info == DumInfo(frame_rate=10, width=20, height=30, hor_scaling=40, ver_scaling=50,
+    assert decoder.info == DumInfo(frame_rate=10, width=20, height=32, hor_scaling=40, ver_scaling=50,
                                    num_frames=60, header_size=15, file_size=15)
 
 
 def test_write_full_file():
     io = BytesIO()
-    write_header(io, frame_rate=1, resolution=(2, 1), scaling=(4, 5), num_frames=2)
-    write_frame(io, [(0, 0, 0), (100, 100, 100)])
-    write_frame(io, [(150, 150, 150), (250, 250, 250)])
+    write_header(io, frame_rate=1, resolution=(4, 4), scaling=(4, 5), num_frames=2)
+    write_frame(io, [(0, 0, 0), (100, 100, 100)] + [(0, 0, 0)] * 14)
+    write_frame(io, [(150, 150, 150), (250, 250, 250)] + [(0, 0, 0)] * 14)
 
 
 def test_write_and_read_full_file():
     io = BytesIO()
-    write_header(io, frame_rate=1, resolution=(2, 1), scaling=(4, 5), num_frames=2)
-    write_frame(io, [(0, 0, 0), (100, 100, 100)])
-    write_frame(io, [(150, 150, 150), (250, 250, 250)])
+    write_header(io, frame_rate=1, resolution=(4, 4), scaling=(4, 5), num_frames=2)
+    write_frame(io, [(0, 0, 0), (100, 100, 100)] + [(0, 0, 0)] * 14)
+    write_frame(io, [(150, 150, 150), (250, 250, 250)] + [(0, 0, 0)] * 14)
     decoder = Decoder(io)
 
     decoder.read_header()
-    assert decoder.info == DumInfo(frame_rate=1, width=2, height=1, hor_scaling=4, ver_scaling=5,
-                                   num_frames=2, header_size=15, file_size=43)
-    assert decoder.read_frame() == [0, 0, 0, 100, 100, 100]
-    assert decoder.read_frame() == [150, 150, 150, 250, 250, 250]
+    assert decoder.info == DumInfo(frame_rate=1, width=4, height=4, hor_scaling=4, ver_scaling=5,
+                                   num_frames=2, header_size=15, file_size=74)
+    assert decoder.read_frame() == [0, 0, 0, 100, 100, 100] + [0, 0, 0] * 14
+    assert decoder.read_frame() == [150, 150, 150, 250, 250, 250] + [0, 0, 0] * 14
 
 
 def test_run_length_frame():
@@ -66,5 +66,5 @@ def test_write_and_read_run_length_frame():
 
     decoded_pixels = _read_frame(io, (w, h))
 
-    assert decoded_pixels[:300] == [0, 64, 128] * 100
-    assert decoded_pixels[300:] == [128, 192, 192] * 9900
+    assert decoded_pixels[:300] == [144, 80, 16] * 100
+    assert decoded_pixels[300:] == [208, 208, 144] * 9900

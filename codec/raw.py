@@ -1,7 +1,7 @@
 from typing import BinaryIO, List, Tuple
 
 from common import FrameType
-from io_utils import RGB, uint8_to_bytes, uint32_to_bytes, write_rgb
+from io_utils import Color, uint8_to_bytes, uint32_to_bytes, write_rgb, write_bgr
 
 DEBUG = False
 
@@ -11,14 +11,14 @@ def debug(text: str):
         print(text)
 
 
-def write_raw_frame(file: BinaryIO, pixels: List[RGB]):
+def write_raw_frame(file: BinaryIO, pixels: List[Color]):
     debug("Writing raw frame")
     # Frame type
     file.write(uint8_to_bytes(FrameType.RAW.value))
     # Frame size
     file.write(uint32_to_bytes(len(pixels) * 3))
     for pixel in pixels:
-        write_rgb(file, pixel)
+        write_bgr(file, pixel)
 
 
 def read_raw_frame(file: BinaryIO, frame_size: int) -> List[int]:

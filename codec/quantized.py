@@ -1,8 +1,10 @@
-from typing import Tuple, Callable, List, BinaryIO
+import struct
+from typing import Callable, List, BinaryIO
 
-from color_quantization import color_to_uint7, color_to_uint15, uint15_to_color, uint7_to_color
+from color_quantization import rgb_to_uint7, rgb_to_uint15, uint7_to_bgr, \
+    uint15_to_bgr
 from common import FrameType
-from io_utils import RGB, bytes_to_int
+from io_utils import Color
 from io_utils import uint8_to_bytes, uint32_to_bytes, uint16_to_bytes
 
 DEBUG = False
@@ -13,19 +15,20 @@ def debug(text: str):
         print(text)
 
 
-def write_8bit_quantized_frame(file: BinaryIO, pixels: List[RGB]):
+def write_8bit_quantized_frame(file: BinaryIO, pixels: List[Color]):
     debug("Writing 8-bit quantized frame")
-    _write_quantized_frame(file, pixels, quantize_color=color_to_uint7, max_run_length=127, bitsize=8,
+    _write_quantized_frame(file, pixels, quantize_color=rgb_to_uint7, max_run_length=127, bitsize=8,
                            to_bytes=uint8_to_bytes, frame_type=FrameType.QUANTIZED_TO_8_BIT)
 
 
-def write_16bit_quantized_frame(file: BinaryIO, pixels: List[RGB]):
+def write_16bit_quantized_frame(file: BinaryIO, pixels: List[Color]):
     debug("Writing 16-bit quantized frame")
-    _write_quantized_frame(file, pixels, quantize_color=color_to_uint15, max_run_length=32_767, bitsize=16,
+    _write_quantized_frame(file, pixels, quantize_color=rgb_to_uint15, max_run_length=32_767, bitsize=16,
                            to_bytes=uint16_to_bytes, frame_type=FrameType.QUANTIZED_TO_16_BIT)
 
 
-def _write_quantized_frame(file: BinaryIO, pixels: List[RGB], quantize_color: Callable[[RGB], int], max_run_length: int,
+def _write_quantized_frame(file: BinaryIO, pixels: List[Color], quantize_color: Callable[[Color], int],
+    max_run_length: int,
     bitsize: int, to_bytes: Callable[[int], bytes], frame_type: FrameType):
     file.write(uint8_to_bytes(frame_type.value))
     # Frame size is written at the end
@@ -55,26 +58,26 @@ def _write_quantized_frame(file: BinaryIO, pixels: List[RGB], quantize_color: Ca
     file.seek(0, 2)
 
 
-def read_16bit_quantized_frame(file: BinaryIO, resolution: Tuple[int, int]):
+def read_16bit_quantized_frame(file: BinaryIO, frame_size: int):
     debug("Reading 16-bit quantized frame...")
-    return read_quantized_frame(resolution, read_quantized_pixel=lambda: bytes_to_int(file.read(2)),
-                                decode_pixel=uint15_to_color, flag_bitmask=0b10000000_00000000,
-                                run_length_bitmask=0b01111111_11111111)
+    format = f">{frame_size // 2}H"
+    read_pixels = list(struct.unpack(format, file.read(frame_size)))
+    return _read_quantized_frame(decode_pixel=uint15_to_bgr, flag_bitmask=0b10000000_00000000,
+                                 run_length_bitmask=0b01111111_11111111, read_pixels=read_pixels)
 
 
-def read_8bit_quantized_frame(file: BinaryIO, resolution: Tuple[int, int]):
+def read_8bit_quantized_frame(file: BinaryIO, frame_size: int):
     debug("Reading 8-bit quantized frame...")
-    return read_quantized_frame(resolution, read_quantized_pixel=lambda: bytes_to_int(file.read(1)),
-                                decode_pixel=uint7_to_color, flag_bitmask=0b10000000,
-                                run_length_bitmask=0b01111111)
+    read_pixels = list(file.read(frame_size))
+    return _read_quantized_frame(decode_pixel=uint7_to_bgr, flag_bitmask=0b10000000,
+                                 run_length_bitmask=0b01111111, read_pixels=read_pixels)
 
 
-def read_quantized_frame(resolution: Tuple[int, int], read_quantized_pixel: Callable[[], int],
-    decode_pixel: Callable[[int], RGB], flag_bitmask: int, run_length_bitmask: int) -> List[int]:
+def _read_quantized_frame(decode_pixel: Callable[[int], Color], flag_bitmask: int, run_length_bitmask: int,
+    read_pixels: List[int]) -> List[int]:
     buf = []
     color = None
-    while len(buf) < resolution[0] * resolution[1] * 3:
-        q = read_quantized_pixel()
+    for i, q in enumerate(read_pixels):
         if not q & flag_bitmask:
             color = decode_pixel(q)
             buf += color
